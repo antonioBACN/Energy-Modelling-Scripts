@@ -1,0 +1,50 @@
+!------------------
+! Sensors
+!------------------
+EnergyManagementSystem:Sensor,
+   OutdoorAirTemp,
+   Environment,
+   Site Outdoor Air Drybulb Temperature;
+
+
+!------------------
+! Actuators
+!------------------
+EnergyManagementSystem:Actuator,
+   GASFIRED_HEATINGCOIL_AVAILABILITY,
+   MUA GAS-FIRED HEATING COIL - AVAILABILITY,
+   Schedule:Compact,
+   Schedule Value;
+
+EnergyManagementSystem:Actuator,
+   COOLINGCOIL_AVAILABILITY,
+   MUA COOLING COIL - AVAILABILITY,
+   Schedule:Compact,
+   Schedule Value;
+
+
+!------------------
+! ProgramCallingManager
+!------------------
+EnergyManagementSystem:ProgramCallingManager,
+   Temperature Control MUA,
+   BeginTimestepBeforePredictor,
+   SupplyAirTemperatureControlMUA;
+
+
+!------------------
+! Program
+!------------------
+EnergyManagementSystem:Program,
+    SupplyAirTemperatureControlMUA,
+    IF (OutdoorAirTemp > 21),
+	SET COOLINGCOIL_AVAILABILITY = 1,
+	SET GASFIRED_HEATINGCOIL_AVAILABILITY = 0,
+    ELSEIF (OutdoorAirTemp < 18),
+	SET COOLINGCOIL_AVAILABILITY = 0,
+	SET GASFIRED_HEATINGCOIL_AVAILABILITY = 1,
+    ELSE, 
+	SET COOLINGCOIL_AVAILABILITY = 0,
+	SET GASFIRED_HEATINGCOIL_AVAILABILITY = 0,
+    ENDIF;
+  
