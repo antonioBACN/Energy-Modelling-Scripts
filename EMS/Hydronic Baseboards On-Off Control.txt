@@ -1,0 +1,253 @@
+! -------------------------
+! New Objects to IDF
+! -------------------------
+<ForAllZones> {ZoneIDFName = UNIT}
+SetpointManager:Scheduled,
+    <LoopZoneVariableName> MinMassFlowSetpointManager,
+    MinimumMassFlowRate,
+    <LoopZoneVariableName> HotWaterFlowSchedule,
+    <LoopZoneVariableName> Water Convector Hot Water Inlet NodeList;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+SetpointManager:Scheduled,
+    <LoopZoneVariableName> MaxMassFlowSetpointManager,
+    MaximumMassFlowRate,
+    <LoopZoneVariableName> HotWaterFlowSchedule,
+    <LoopZoneVariableName> Water Convector Hot Water Inlet NodeList;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+NodeList,
+    <LoopZoneVariableName> Water Convector Hot Water Inlet NodeList,
+    <LoopZoneIDFName> Water Convector Hot Water Inlet Node;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+Schedule:Compact,
+    <LoopZoneVariableName> HotWaterFlowSchedule,
+    Any Number,
+    Through: 12/31,
+    For: AllDays,
+    Until: 24:00, 1;
+<LoopNextZone>
+
+
+! -------------------------
+! Sensors
+! -------------------------
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:Sensor,
+    <LoopZoneVariableName>_CoolingSP,
+    <LoopZoneIDFName>,
+    Zone Thermostat Cooling Setpoint Temperature;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:Sensor,
+    <LoopZoneVariableName>_HeatingSP,
+    <LoopZoneIDFName>,
+    Zone Thermostat Heating Setpoint Temperature;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:Sensor,
+    <LoopZoneVariableName>_ZoneAirTemp,
+    <LoopZoneIDFName>,
+    Zone Mean Air Temperature;
+<LoopNextZone>
+
+
+! -------------------------
+! Actuators
+! -------------------------
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:Actuator,
+    <LoopZoneVariableName>_ValueHotWaterFlowSchedule,
+    <LoopZoneVariableName> HotWaterFlowSchedule,
+    Schedule:Compact,
+    Schedule Value;
+<LoopNextZone>
+
+
+! -------------------------
+! Internal Variables
+! -------------------------
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:InternalVariable,
+   <LoopZoneVariableName>_FinalZoneDesignHeatingLoad,
+   <LoopZoneIDFName>,
+   Final Zone Design Heating Load;
+<LoopNextZone>
+
+
+! -------------------------
+! Global Variables
+! -------------------------
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    SysMode_<LoopZoneVariableName>;  !- 0=OFF, 1=Cooling standby, 2=Cooling ON, 3=Heating standby, 4=Heating ON
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    PrevSysMode_<LoopZoneVariableName>;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    DesignWaterFlow_<LoopZoneVariableName>;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    DesignHeatingLoad_<LoopZoneVariableName>;
+<LoopNextZone>
+
+
+EnergyManagementSystem:GlobalVariable,
+    Deadband;
+
+EnergyManagementSystem:GlobalVariable,
+    DT;
+
+EnergyManagementSystem:GlobalVariable,
+    cp;
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    AdjClgSP_<LoopZoneVariableName>;
+<LoopNextZone>
+
+
+<ForAllZones> {ZoneIDFName = UNIT}
+EnergyManagementSystem:GlobalVariable,
+    AdjHtgSP_<LoopZoneVariableName>;
+<LoopNextZone>
+
+! -------------------------
+! Program Calling Managers
+! -------------------------
+EnergyManagementSystem:ProgramCallingManager,
+    TempScheduleManager,
+    BeginTimestepBeforePredictor,
+    TempScheduleSet;
+
+
+EnergyManagementSystem:ProgramCallingManager,
+    MainManager,
+    AfterPredictorAfterHVACManagers,
+    Main;
+
+
+! -------------------------
+! Programs
+! -------------------------
+EnergyManagementSystem:Program,
+    TempScheduleSet,
+    SET Deadband = 0.15,
+    SET cp = 3993.4,
+    SET DT = 16.667,
+    <ForAllZones> {ZoneIDFName = UNIT}
+    SET AdjClgSP_<LoopZoneVariableName> = <LoopZoneVariableName>_CoolingSP + Deadband,
+    SET AdjHtgSP_<LoopZoneVariableName> = <LoopZoneVariableName>_HeatingSP - Deadband,
+    SET DesignHeatingLoad_<LoopZoneVariableName> = <LoopZoneVariableName>_FinalZoneDesignHeatingLoad,
+    SET DesignWaterFlow_<LoopZoneVariableName> = DesignHeatingLoad_<LoopZoneVariableName> / (cp * DT),
+    <LoopNextZone>;
+
+EnergyManagementSystem:Program,
+    Main,
+        <ForAllZones> {ZoneIDFName = UNIT}
+        IF (PrevSysMode_<LoopZoneVariableName> == NULL),
+            SET PrevSysMode_<LoopZoneVariableName> = 0,
+        ENDIF,
+
+        IF (PrevSysMode_<LoopZoneVariableName> == 0),
+            IF (<LoopZoneVariableName>_ZoneAirTemp > AdjClgSP_<LoopZoneVariableName>),
+                IF (<LoopZoneVariableName>_ZoneAirTemp > AdjClgSP_<LoopZoneVariableName> + Deadband),
+                    SET SysMode_<LoopZoneVariableName> = 2,
+                ELSE,
+                    SET SysMode_<LoopZoneVariableName> = 1,
+                ENDIF,
+            ELSEIF (<LoopZoneVariableName>_ZoneAirTemp < AdjHtgSP_<LoopZoneVariableName>),
+                IF (<LoopZoneVariableName>_ZoneAirTemp < AdjHtgSP_<LoopZoneVariableName> - Deadband),
+                    SET SysMode_<LoopZoneVariableName> = 4,
+                ELSE,
+                    SET SysMode_<LoopZoneVariableName> = 3,
+                ENDIF,
+            ELSE,
+                SET SysMode_<LoopZoneVariableName> = 0,
+            ENDIF,
+        ELSE,
+            IF ((PrevSysMode_<LoopZoneVariableName> == 2) || (PrevSysMode_<LoopZoneVariableName> == 1)),
+                IF (<LoopZoneVariableName>_ZoneAirTemp < AdjClgSP_<LoopZoneVariableName> - Deadband),
+                    SET SysMode_<LoopZoneVariableName> = 0,
+                ELSE,
+                    IF (PrevSysMode_<LoopZoneVariableName> == 2),
+                        SET SysMode_<LoopZoneVariableName> = 2,
+                    ELSE,
+                        SET SysMode_<LoopZoneVariableName> = 1,
+                    ENDIF,
+                ENDIF,
+            ELSEIF ((PrevSysMode_<LoopZoneVariableName> == 3) || (PrevSysMode_<LoopZoneVariableName> == 4)),
+                IF (<LoopZoneVariableName>_ZoneAirTemp > AdjHtgSP_<LoopZoneVariableName> + Deadband),
+                    SET SysMode_<LoopZoneVariableName> = 0,
+                ELSE,
+                    IF (PrevSysMode_<LoopZoneVariableName> == 3),
+                        SET SysMode_<LoopZoneVariableName> = 3,
+                    ELSE,
+                        SET SysMode_<LoopZoneVariableName> = 4,
+                    ENDIF,
+                ENDIF,
+            ELSE,
+                SET SysMode_<LoopZoneVariableName> = 0,
+            ENDIF,
+        ENDIF,
+
+        IF (SysMode_<LoopZoneVariableName> == 0),
+            SET <LoopZoneVariableName>_ValueHotWaterFlowSchedule = 0,
+        ELSEIF ((SysMode_<LoopZoneVariableName> == 1) || (SysMode_<LoopZoneVariableName> == 2)),
+            SET <LoopZoneVariableName>_ValueHotWaterFlowSchedule = 0,
+        ELSEIF ((SysMode_<LoopZoneVariableName> == 3) || (SysMode_<LoopZoneVariableName> == 4)),
+            SET <LoopZoneVariableName>_ValueHotWaterFlowSchedule = DesignWaterFlow_<LoopZoneVariableName>,
+        ENDIF,
+        SET PrevSysMode_<LoopZoneVariableName> = SysMode_<LoopZoneVariableName>,
+        <LoopNextZone>;
+
+
+!<ForAllZones> {ZoneIDFName = UNIT}
+!EnergyManagementSystem:OutputVariable,
+!    SysMode_<LoopZoneVariableName>_Report,
+!    SysMode_<LoopZoneVariableName>,
+!    Averaged,
+!    ZoneTimestep;
+!<LoopNextZone>
+
+!<ForAllZones> {ZoneIDFName = UNIT}
+!Output:Variable, *, SysMode_<LoopZoneVariableName>_Report, Hourly;
+!Output:Variable, *, SysMode_<LoopZoneVariableName>_Report, Timestep;
+!<LoopNextZone>
+
+
+
+!<ForAllZones> {ZoneIDFName = UNIT}
+!EnergyManagementSystem:OutputVariable,
+!    DesignHeatingLoad_<LoopZoneVariableName>_Value,
+!    DesignHeatingLoad_<LoopZoneVariableName>,
+!    Averaged,
+!    ZoneTimestep;
+!<LoopNextZone>
+
+!<ForAllZones> {ZoneIDFName = UNIT}
+!Output:Variable, *, DesignHeatingLoad_<LoopZoneVariableName>_Value, Hourly;
+!Output:Variable, *, DesignHeatingLoad_<LoopZoneVariableName>_Value, Timestep;
+!<LoopNextZone>
