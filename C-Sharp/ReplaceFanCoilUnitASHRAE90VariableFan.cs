@@ -1,3 +1,8 @@
+/*
+DesignBuilder does not support the "ASHRAE90VariableFan" capacity control method for 'ZoneHVAC:FourPipeFanCoil'. Therefore, this script enables this control method, whose sequence of operation
+is similar to the sequence of operation established by ASHRAE Guideline 36.
+The script changes the capacity control method for all 'ZoneHVAC:FourPipeFanCoil' objects found in the IDF.
+*/
 using DB.Extensibility.Contracts;
 using EpNet;
 using System;
